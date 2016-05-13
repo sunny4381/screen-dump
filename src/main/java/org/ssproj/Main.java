@@ -25,7 +25,6 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +43,7 @@ public class Main implements Runnable {
         opts.addOption("i", "initial-sleep", true, "specify sleep in milliseconds before taking first screenshot. default is 5000.");
         opts.addOption("s", "sleep", true, "specify sleep in milliseconds before taking each screenshots. default is 500.");
         opts.addOption("c", "concurrency", true, "specify concurrency. default is 2.");
-        opts.addOption("t", "traverse", false, "specify traverse other links. default is no traverse.");
+        opts.addOption("t", "traverse", true, "specify traverse other links. default is no traverse.");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cl = parser.parse(opts, args);
@@ -84,19 +83,33 @@ public class Main implements Runnable {
             concurrency = 2;
         }
 
-        final boolean traverse;
+        final TraverseSetting traverseSetting;
         if (cl.hasOption('t')) {
-            traverse = true;
+            traverseSetting = TraverseSetting.load(cl.getOptionValue('t'));
         } else {
-            traverse = false;
+            traverseSetting = null;
         }
 
         final BlockingQueue<URL> queue = new LinkedBlockingQueue<>();
         final Thread[] threads = new Thread[concurrency];
         for (int i = 0; i < concurrency; i++) {
-            final Runnable runner = new Main(queue, outputDirectory, browser, initialSleep, sleep, traverse);
+            final Runnable runner = new Main(queue, outputDirectory, browser, initialSleep, sleep, traverseSetting);
             threads[i] = new Thread(runner);
             threads[i].start();
+        }
+
+        if (traverseSetting != null) {
+            for (String url: traverseSetting.getSeeds()) {
+                try {
+                    queue.put(new URL(url));
+                } catch (MalformedURLException e) {
+                    LOGGER.error("malformed error", e);
+                    continue;
+                } catch (InterruptedException e) {
+                    LOGGER.error("interrupted", e);
+                    break;
+                }
+            }
         }
 
         for (String fileName: cl.getArgs()) {
@@ -154,10 +167,10 @@ public class Main implements Runnable {
     private final Wait<WebDriver> wait;
     private final long initialSleep;
     private final long sleep;
-    private final boolean traverse;
+    private final TraverseSetting traverseSetting;
     private final AtomicLong counter = new AtomicLong();
 
-    public Main(BlockingQueue<URL> queue, String outputDirectory, String browser, long initialSleep, long sleep, boolean traverse) {
+    public Main(BlockingQueue<URL> queue, String outputDirectory, String browser, long initialSleep, long sleep, TraverseSetting traverseSetting) {
         this.queue = queue;
         this.outputDirectory = outputDirectory;
         if (browser.equalsIgnoreCase("firefox")) {
@@ -178,7 +191,7 @@ public class Main implements Runnable {
         this.wait = new WebDriverWait(this.driver, 30);
         this.initialSleep = initialSleep;
         this.sleep = sleep;
-        this.traverse = traverse;
+        this.traverseSetting = traverseSetting;
     }
 
     public void run() {
@@ -231,9 +244,11 @@ public class Main implements Runnable {
         }
 
         // traverse
-        if (this.traverse) {
+        if (this.traverseSetting != null) {
             try {
-                traverse(url.toURI());
+                if (this.traverseSetting.allowsForExtraction(url)) {
+                    traverse(url.toURI());
+                }
             } catch (URISyntaxException e) {
                 LOGGER.error("syntax error", e);
             }
@@ -317,14 +332,7 @@ public class Main implements Runnable {
                 if (check.contains(newUrl)) {
                     continue;
                 }
-
-                if (newUrl.getPath().startsWith("/mobile/")) {
-                    continue;
-                }
-                if (newUrl.getPath().startsWith("/.voice")) {
-                    continue;
-                }
-                if (newUrl.getPath().startsWith("/#/kana")) {
+                if (!this.traverseSetting.allowsForAccess(newUrl)) {
                     continue;
                 }
 
