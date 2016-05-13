@@ -185,16 +185,16 @@ public class Main implements Runnable {
         this.outputDirectory = outputDirectory;
         this.screenShotLimit = screenShotLimit;
         if (browser.equalsIgnoreCase("firefox")) {
-            System.out.println("activating firefox driver");
+            LOGGER.info("activating firefox driver");
             this.driver = new FirefoxDriver();
         } else if (browser.equalsIgnoreCase("chrome")) {
-            System.out.println("activating chrome driver");
+            LOGGER.info("activating chrome driver");
             this.driver = new ChromeDriver();
         } else if (browser.equalsIgnoreCase("ie")) {
-            System.out.println("activating internet explorer driver");
+            LOGGER.info("activating internet explorer driver");
             this.driver = new InternetExplorerDriver();
         } else if (browser.equalsIgnoreCase("edge")) {
-            System.out.println("activating edge driver");
+            LOGGER.info("activating edge driver");
             this.driver = new EdgeDriver();
         } else {
             throw new IllegalArgumentException("unknown browser");
@@ -206,6 +206,7 @@ public class Main implements Runnable {
     }
 
     public void run() {
+        LOGGER.debug("start taking screen shots");
         while (!done.get()) {
             final URL url;
             try {
@@ -224,13 +225,18 @@ public class Main implements Runnable {
         }
 
         this.driver.close();
+        LOGGER.info("finish taking screen shots");
     }
 
     private void saveScreenShot(URL url) {
         if (exceedsScreenShotLimit(totalCounter.incrementAndGet())) {
             return;
         }
+        if ((totalCounter.get() % 10) == 0) {
+            reportStats();
+        }
 
+        LOGGER.info("visit: {}", url);
         this.driver.get(url.toString());
 
         final long sleep;
@@ -270,13 +276,26 @@ public class Main implements Runnable {
         }
     }
 
+    private void reportStats() {
+        StringBuilder log = new StringBuilder();
+        log.append(totalCounter.get());
+        log.append(" screen shots taked");
+
+        log.append("; ");
+
+        log.append(queue.size());
+        log.append(" urls remaining");
+
+        LOGGER.info(log.toString());
+    }
+
     private boolean exceedsScreenShotLimit(long count) {
         if (this.screenShotLimit <= 0) {
             // unlimited
             return false;
         }
 
-        return this.screenShotLimit <= count;
+        return this.screenShotLimit < count;
     }
 
     private void saveChromeScreenShot(URL url) throws IOException {
