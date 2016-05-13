@@ -35,11 +35,13 @@ public class Main implements Runnable {
     private final static Logger LOGGER = LoggerFactory.getLogger(Main.class);
     private final static AtomicBoolean done = new AtomicBoolean();
     private final static Set<URL> check = Collections.synchronizedSet(new HashSet<>());
+    private final static AtomicLong totalCounter = new AtomicLong();
 
     public static void main(String[] args) throws IOException, ParseException {
         Options opts = new Options();
         opts.addOption("b", "browser", true, "specify one of browser: ie, firefox, chrome, edge. default is `ie`.");
         opts.addOption("o", "output", true, "specify output directory. default is `screenshots`.");
+        opts.addOption("l", "limit", true, "specify screen shots limits. default is 0 (unlimited).");
         opts.addOption("i", "initial-sleep", true, "specify sleep in milliseconds before taking first screenshot. default is 5000.");
         opts.addOption("s", "sleep", true, "specify sleep in milliseconds before taking each screenshots. default is 500.");
         opts.addOption("c", "concurrency", true, "specify concurrency. default is 2.");
@@ -60,6 +62,13 @@ public class Main implements Runnable {
             outputDirectory = cl.getOptionValue('o');
         } else {
             outputDirectory = "screenshots";
+        }
+
+        final long screenShotLimit;
+        if (cl.hasOption('l')) {
+            screenShotLimit = Long.parseLong(cl.getOptionValue('l'));
+        } else {
+            screenShotLimit = 0;
         }
 
         final long initialSleep;
@@ -93,7 +102,7 @@ public class Main implements Runnable {
         final BlockingQueue<URL> queue = new LinkedBlockingQueue<>();
         final Thread[] threads = new Thread[concurrency];
         for (int i = 0; i < concurrency; i++) {
-            final Runnable runner = new Main(queue, outputDirectory, browser, initialSleep, sleep, traverseSetting);
+            final Runnable runner = new Main(queue, outputDirectory, screenShotLimit, browser, initialSleep, sleep, traverseSetting);
             threads[i] = new Thread(runner);
             threads[i].start();
         }
@@ -163,6 +172,7 @@ public class Main implements Runnable {
 
     private final BlockingQueue<URL> queue;
     private final String outputDirectory;
+    private final long screenShotLimit;
     private final WebDriver driver;
     private final Wait<WebDriver> wait;
     private final long initialSleep;
@@ -170,9 +180,10 @@ public class Main implements Runnable {
     private final TraverseSetting traverseSetting;
     private final AtomicLong counter = new AtomicLong();
 
-    public Main(BlockingQueue<URL> queue, String outputDirectory, String browser, long initialSleep, long sleep, TraverseSetting traverseSetting) {
+    public Main(BlockingQueue<URL> queue, String outputDirectory, long screenShotLimit, String browser, long initialSleep, long sleep, TraverseSetting traverseSetting) {
         this.queue = queue;
         this.outputDirectory = outputDirectory;
+        this.screenShotLimit = screenShotLimit;
         if (browser.equalsIgnoreCase("firefox")) {
             System.out.println("activating firefox driver");
             this.driver = new FirefoxDriver();
@@ -216,6 +227,10 @@ public class Main implements Runnable {
     }
 
     private void saveScreenShot(URL url) {
+        if (exceedsScreenShotLimit(totalCounter.incrementAndGet())) {
+            return;
+        }
+
         this.driver.get(url.toString());
 
         final long sleep;
@@ -253,6 +268,15 @@ public class Main implements Runnable {
                 LOGGER.error("syntax error", e);
             }
         }
+    }
+
+    private boolean exceedsScreenShotLimit(long count) {
+        if (this.screenShotLimit <= 0) {
+            // unlimited
+            return false;
+        }
+
+        return this.screenShotLimit <= count;
     }
 
     private void saveChromeScreenShot(URL url) throws IOException {
