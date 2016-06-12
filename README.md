@@ -78,3 +78,5 @@ java -jar screen-dump-1.0-jar-with-dependencies.jar -b ブラウザ -o 出力デ
 * -l: 制限
   * 指定された数のスクリーンショットを撮影するとプログラムは終了する。
 * -t: トラバースファイル
+* --width: ウィンドウ幅
+* --height: ウィンドウ高さ
