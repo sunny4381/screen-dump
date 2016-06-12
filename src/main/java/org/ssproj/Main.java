@@ -4,10 +4,12 @@ import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;
 import org.openqa.selenium.*;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
@@ -38,7 +40,7 @@ public class Main implements Runnable {
     private final static AtomicLong totalCounter = new AtomicLong();
 
     public static void main(String[] args) throws IOException, ParseException {
-        Options opts = new Options();
+        final Options opts = new Options();
         opts.addOption("b", "browser", true, "specify one of browser: ie, firefox, chrome, edge. default is `ie`.");
         opts.addOption("o", "output", true, "specify output directory. default is `screenshots`.");
         opts.addOption("l", "limit", true, "specify screen shots limits. default is 0 (unlimited).");
@@ -46,9 +48,18 @@ public class Main implements Runnable {
         opts.addOption("s", "sleep", true, "specify sleep in milliseconds before taking each screenshots. default is 500.");
         opts.addOption("c", "concurrency", true, "specify concurrency. default is 2.");
         opts.addOption("t", "traverse", true, "specify traverse other links. default is no traverse.");
+        opts.addOption("width", "width", true, "specify window width.");
+        opts.addOption("height", "height", true, "specify window height.");
 
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cl = parser.parse(opts, args);
+        final CommandLineParser parser = new DefaultParser();
+        final CommandLine cl;
+        try {
+            cl = parser.parse(opts, args);
+        } catch (ParseException e) {
+            HelpFormatter help = new HelpFormatter();
+            help.printHelp("screen-dump", opts, true);
+            return;
+        }
 
         final String browser;
         if (cl.hasOption('b')) {
@@ -99,10 +110,24 @@ public class Main implements Runnable {
             traverseSetting = null;
         }
 
+        final int width;
+        if (cl.hasOption("width")) {
+            width = Integer.parseInt(cl.getOptionValue("width"));
+        } else {
+            width = 0;
+        }
+
+        final int height;
+        if (cl.hasOption("height")) {
+            height = Integer.parseInt(cl.getOptionValue("height"));
+        } else {
+            height = 0;
+        }
+
         final BlockingQueue<URL> queue = new LinkedBlockingQueue<>();
         final Thread[] threads = new Thread[concurrency];
         for (int i = 0; i < concurrency; i++) {
-            final Runnable runner = new Main(queue, outputDirectory, screenShotLimit, browser, initialSleep, sleep, traverseSetting);
+            final Runnable runner = new Main(queue, outputDirectory, screenShotLimit, browser, initialSleep, sleep, traverseSetting, width, height);
             threads[i] = new Thread(runner);
             threads[i].start();
         }
@@ -179,8 +204,9 @@ public class Main implements Runnable {
     private final long sleep;
     private final TraverseSetting traverseSetting;
     private final AtomicLong counter = new AtomicLong();
+    private final long scrollWait = 100;
 
-    public Main(BlockingQueue<URL> queue, String outputDirectory, long screenShotLimit, String browser, long initialSleep, long sleep, TraverseSetting traverseSetting) {
+    public Main(BlockingQueue<URL> queue, String outputDirectory, long screenShotLimit, String browser, long initialSleep, long sleep, TraverseSetting traverseSetting, int width, int height) {
         this.queue = queue;
         this.outputDirectory = outputDirectory;
         this.screenShotLimit = screenShotLimit;
@@ -196,6 +222,9 @@ public class Main implements Runnable {
         } else if (browser.equalsIgnoreCase("edge")) {
             LOGGER.info("activating edge driver");
             this.driver = new EdgeDriver();
+        } else if (browser.equalsIgnoreCase("safari")) {
+            LOGGER.info("activating safari driver");
+            this.driver = new SafariDriver();
         } else {
             throw new IllegalArgumentException("unknown browser");
         }
@@ -203,6 +232,21 @@ public class Main implements Runnable {
         this.initialSleep = initialSleep;
         this.sleep = sleep;
         this.traverseSetting = traverseSetting;
+
+        LOGGER.info("set window size: 1280x1024");
+        WebDriver.Window window = this.driver.manage().window();
+        Dimension size = window.getSize();
+
+        if (width <= 0) {
+            width = size.getWidth();
+        }
+        if (height <= 0) {
+            height = size.getHeight();
+        }
+
+        if (size.getWidth() != width || size.getHeight() != height) {
+            window.setSize(new Dimension(width, height));
+        }
     }
 
     public void run() {
@@ -306,28 +350,31 @@ public class Main implements Runnable {
         int innerW =Integer.parseInt(String.valueOf(jexec.executeScript("return window.innerWidth")));
         int scrollH = Integer.parseInt(String.valueOf(jexec.executeScript("return document.documentElement.scrollHeight")));
 
-        //イメージを扱うための準備
-        BufferedImage img = new BufferedImage(innerW, scrollH, BufferedImage.TYPE_INT_ARGB);
-        Graphics g = img.getGraphics();
-
         //スクロールを行うかの判定
         if (innerH > scrollH) {
-            BufferedImage imageParts = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
-            g.drawImage(imageParts, 0, 0, null);
+            BufferedImage img = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
+            ImageIO.write(img, "png", getOutputFile(url));
         } else {
-            int scrollableH = scrollH;
+            //イメージを扱うための準備
+            BufferedImage img = new BufferedImage(innerW, scrollH, BufferedImage.TYPE_INT_ARGB);
+            Graphics g = img.getGraphics();
+
+            // int scrollableH = scrollH;
             int i = 0;
+            int y = 0;
 
             //スクロールしながらなんどもイメージを結合していく
-            while (scrollableH > innerH) {
+            while (scrollH > y + innerH) {
                 BufferedImage imageParts = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
-                g.drawImage(imageParts, 0, innerH * i, null);
-                scrollableH = scrollableH - innerH;
+                //ImageIO.write(imageParts, "PNG", getOutputFile(url, i));
+
+                g.drawImage(imageParts, 0, y, innerW, innerH, null);
+                y += innerH - 20;
                 i++;
-                jexec.executeScript("window.scrollTo(0," + innerH * i + ")");
+                jexec.executeScript("window.scrollTo(0," + y + ")");
 
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(this.scrollWait);
                 } catch (InterruptedException e) {
                     break;
                 }
@@ -335,10 +382,11 @@ public class Main implements Runnable {
 
             //一番下まで行ったときは、下から埋めるように貼り付け
             BufferedImage imageParts = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
-            g.drawImage(imageParts, 0, scrollH - innerH, null);
-        }
+            //ImageIO.write(imageParts, "PNG", getOutputFile(url, i));
+            g.drawImage(imageParts, 0, scrollH - innerH, innerW, innerH, null);
 
-        ImageIO.write(img, "png", getOutputFile(url));
+            ImageIO.write(img, "png", getOutputFile(url));
+        }
     }
 
     private File getOutputFile(URL url) {
@@ -347,6 +395,22 @@ public class Main implements Runnable {
             outputFileName = outputFileName + "index.html";
         }
         outputFileName = outputFileName + ".png";
+
+        File outputFile = new File(new File(this.outputDirectory), outputFileName);
+        File outputDirectory = outputFile.getParentFile();
+        if (!outputDirectory.exists()) {
+            outputDirectory.mkdirs();
+        }
+
+        return outputFile;
+    }
+
+    private File getOutputFile(URL url, int index) {
+        String outputFileName = url.getPath();
+        if (outputFileName.endsWith("/")) {
+            outputFileName = outputFileName + "index.html";
+        }
+        outputFileName = outputFileName + "-" + index + ".png";
 
         File outputFile = new File(new File(this.outputDirectory), outputFileName);
         File outputDirectory = outputFile.getParentFile();
