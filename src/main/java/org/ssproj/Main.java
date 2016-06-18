@@ -349,6 +349,7 @@ public class Main implements Runnable {
         int innerH = Integer.parseInt(String.valueOf(jexec.executeScript("return window.innerHeight")));
         int innerW =Integer.parseInt(String.valueOf(jexec.executeScript("return window.innerWidth")));
         int scrollH = Integer.parseInt(String.valueOf(jexec.executeScript("return document.documentElement.scrollHeight")));
+        int devicePixelRatio = Integer.parseInt(String.valueOf(jexec.executeScript("return window.devicePixelRatio")));
 
         //スクロールを行うかの判定
         if (innerH > scrollH) {
@@ -356,7 +357,7 @@ public class Main implements Runnable {
             ImageIO.write(img, "png", getOutputFile(url));
         } else {
             //イメージを扱うための準備
-            BufferedImage img = new BufferedImage(innerW, scrollH, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage img = new BufferedImage(innerW * devicePixelRatio, scrollH * devicePixelRatio, BufferedImage.TYPE_INT_ARGB);
             Graphics g = img.getGraphics();
 
             // int scrollableH = scrollH;
@@ -368,7 +369,7 @@ public class Main implements Runnable {
                 BufferedImage imageParts = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
                 //ImageIO.write(imageParts, "PNG", getOutputFile(url, i));
 
-                g.drawImage(imageParts, 0, y, innerW, innerH, null);
+                g.drawImage(imageParts, 0, y * devicePixelRatio, innerW * devicePixelRatio, innerH * devicePixelRatio, null);
                 y += innerH - 20;
                 i++;
                 jexec.executeScript("window.scrollTo(0," + y + ")");
@@ -383,7 +384,7 @@ public class Main implements Runnable {
             //一番下まで行ったときは、下から埋めるように貼り付け
             BufferedImage imageParts = ImageIO.read(((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE));
             //ImageIO.write(imageParts, "PNG", getOutputFile(url, i));
-            g.drawImage(imageParts, 0, scrollH - innerH, innerW, innerH, null);
+            g.drawImage(imageParts, 0, (scrollH - innerH) * devicePixelRatio, innerW * devicePixelRatio, innerH * devicePixelRatio, null);
 
             ImageIO.write(img, "png", getOutputFile(url));
         }
