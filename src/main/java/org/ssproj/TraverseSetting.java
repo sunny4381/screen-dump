@@ -1,5 +1,7 @@
 package org.ssproj;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileReader;
@@ -13,6 +15,7 @@ import java.util.List;
  * Created by nakano on 2016/05/13.
  */
 public class TraverseSetting {
+    private final static Logger LOGGER = LoggerFactory.getLogger(TraverseSetting.class);
     public static TraverseSetting load(String fileName) throws IOException {
         Yaml yaml = new Yaml();
         HashMap setting = (HashMap) yaml.load(new FileReader(fileName));
@@ -60,6 +63,10 @@ public class TraverseSetting {
     }
 
     public boolean containsExcludePaths(URL url) {
+        if (this.getExcludePaths().isEmpty()) {
+            return true;
+        }
+
         boolean found = false;
         for (String path : this.getExcludePaths()) {
             if (url.getPath().startsWith(path)) {
@@ -77,15 +84,54 @@ public class TraverseSetting {
         return this.allowSuffixes;
     }
 
-    public boolean containsAllowSuffixes(URL url) {
-        boolean found = false;
-        for (String suffix : this.getAllowSuffixes()) {
-            if (url.getPath().endsWith(suffix)) {
-                found = true;
-                break;
-            }
+    public static String removeFragmentPart(String path) {
+        if (path == null) {
+            return path;
         }
-        return found;
+
+        final int index = path.indexOf('#');
+        if (index >= 0) {
+            return path.substring(index);
+        }
+
+        return path;
+    }
+
+    public static String removeQueryPart(String path) {
+        if (path == null) {
+            return path;
+        }
+
+        final int index = path.indexOf('?');
+        if (index >= 0) {
+            return path.substring(index);
+        }
+
+        return path;
+    }
+
+    public static String extractSuffix(URL url) {
+        final String path = url.getPath();
+        final int last_slash = path.lastIndexOf('/');
+
+        final int last_dot = path.lastIndexOf('.');
+        final String suffix;
+        if (last_dot >= 0 && last_dot > last_slash) {
+            suffix = path.substring(last_dot);
+        } else {
+            suffix = null;
+        }
+
+        return removeQueryPart(removeFragmentPart(suffix));
+    }
+
+    public boolean containsAllowSuffixes(URL url) {
+        if (this.getAllowSuffixes().isEmpty()) {
+            return true;
+        }
+
+        final String suffix = extractSuffix(url);
+        return this.getAllowSuffixes().contains(suffix);
     }
 
     public boolean allowsForAccess(URL url) {
@@ -100,13 +146,18 @@ public class TraverseSetting {
     }
 
     public boolean allowsForExtraction(URL url) {
-        if (!this.getExtractableDomains().contains(url.getHost()) && !this.getExtractableDomains().contains(url.getHost() + ":" + url.getPort())) {
-            return false;
+        if (!this.getExtractableDomains().contains(url.getHost())) {
+            if (!this.getExtractableDomains().contains(url.getHost() + ":" + url.getPort())){
+                LOGGER.debug("not included in extractable domains: {}", url);
+                return false;
+            }
         }
         if (containsExcludePaths(url)) {
+            LOGGER.debug("excluded by paths: {}", url);
             return false;
         }
         if (!containsAllowSuffixes(url)) {
+            LOGGER.debug("excluded by suffixes: {}", url);
             return false;
         }
 
