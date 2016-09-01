@@ -391,13 +391,17 @@ public class Main implements Runnable {
     }
 
     private File getOutputFile(URL url) {
+        String host = url.getHost();
+        int port = url.getPort();
+        String hostDirectory = port == -1 ? host : host + "_" + port;
+
         String outputFileName = url.getPath();
         if (outputFileName.endsWith("/")) {
             outputFileName = outputFileName + "index.html";
         }
         outputFileName = outputFileName + ".png";
 
-        File outputFile = new File(new File(this.outputDirectory), outputFileName);
+        File outputFile = new File(new File(new File(this.outputDirectory), hostDirectory), outputFileName);
         File outputDirectory = outputFile.getParentFile();
         if (!outputDirectory.exists()) {
             outputDirectory.mkdirs();
@@ -406,21 +410,21 @@ public class Main implements Runnable {
         return outputFile;
     }
 
-    private File getOutputFile(URL url, int index) {
-        String outputFileName = url.getPath();
-        if (outputFileName.endsWith("/")) {
-            outputFileName = outputFileName + "index.html";
-        }
-        outputFileName = outputFileName + "-" + index + ".png";
-
-        File outputFile = new File(new File(this.outputDirectory), outputFileName);
-        File outputDirectory = outputFile.getParentFile();
-        if (!outputDirectory.exists()) {
-            outputDirectory.mkdirs();
-        }
-
-        return outputFile;
-    }
+//    private File getOutputFile(URL url, int index) {
+//        String outputFileName = url.getPath();
+//        if (outputFileName.endsWith("/")) {
+//            outputFileName = outputFileName + "index.html";
+//        }
+//        outputFileName = outputFileName + "-" + index + ".png";
+//
+//        File outputFile = new File(new File(this.outputDirectory), outputFileName);
+//        File outputDirectory = outputFile.getParentFile();
+//        if (!outputDirectory.exists()) {
+//            outputDirectory.mkdirs();
+//        }
+//
+//        return outputFile;
+//    }
 
     private void traverse(final URI baseUri) {
         for (WebElement element : this.driver.findElements(By.tagName("a"))) {
