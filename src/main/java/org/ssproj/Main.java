@@ -32,6 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 public class Main implements Runnable {
     private final static Logger LOGGER = LoggerFactory.getLogger(Main.class);
@@ -400,6 +401,9 @@ public class Main implements Runnable {
             outputFileName = outputFileName + "index.html";
         }
         outputFileName = outputFileName + ".png";
+
+        Pattern regex = Pattern.compile("/\\.");
+        outputFileName = regex.matcher(outputFileName).replaceAll("/_");
 
         File outputFile = new File(new File(new File(this.outputDirectory), hostDirectory), outputFileName);
         File outputDirectory = outputFile.getParentFile();
