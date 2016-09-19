@@ -264,8 +264,13 @@ public class Main implements Runnable {
                 continue;
             }
 
-            if (check.add(url)) {
-                saveScreenShot(url);
+            try {
+                if (check.add(url)) {
+                    saveScreenShot(url);
+                }
+            } catch (RuntimeException e) {
+                LOGGER.warn("unknown error", e);
+                continue;
             }
         }
 
@@ -282,7 +287,13 @@ public class Main implements Runnable {
         }
 
         LOGGER.info("visit: {}", url);
-        this.driver.get(url.toString());
+        try {
+            this.driver.get(url.toString());
+        } catch (org.openqa.selenium.WebDriverException e) {
+            final String failureMessage = String.format("error occurs while visiting %s", url);
+            LOGGER.warn(failureMessage, e);
+            return;
+        }
 
         final long sleep;
         if (counter.incrementAndGet() == 1) {
