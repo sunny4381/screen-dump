@@ -315,6 +315,7 @@ public class Main implements Runnable {
                 File file = ((TakesScreenshot) this.driver).getScreenshotAs(OutputType.FILE);
                 File outputFile = getOutputFile(url);
                 FileUtils.copyFile(file, outputFile);
+                compressPng(outputFile);
             }
         } catch (IOException e) {
             LOGGER.error("save error", e);
@@ -400,6 +401,7 @@ public class Main implements Runnable {
 
             ImageIO.write(img, "png", getOutputFile(url));
         }
+        compressPng(getOutputFile(url));
     }
 
     private File getOutputFile(URL url) {
@@ -423,6 +425,20 @@ public class Main implements Runnable {
         }
 
         return outputFile;
+    }
+
+    private void compressPng(File file) {
+        if (! file.exists()) {
+            return;
+        }
+
+        final String command = this.traverseSetting.getPngQuant();
+        if (command == null || command.isEmpty()) {
+            return;
+        }
+
+        final PNGCompressor compressor = new PNGCompressor(command);
+        compressor.apply(file);
     }
 
 //    private File getOutputFile(URL url, int index) {

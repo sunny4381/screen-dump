@@ -29,6 +29,7 @@ public class TraverseSetting {
     private List<String> extractableDomains;
     private List<String> excludePaths;
     private List<String> allowSuffixes;
+    private String pngQuant;
 
     public TraverseSetting(HashMap settings) {
         this.settings = settings;
@@ -162,5 +163,12 @@ public class TraverseSetting {
         }
 
         return true;
+    }
+
+    public String getPngQuant() {
+        if (this.pngQuant == null) {
+            this.pngQuant = (String) this.settings.getOrDefault("pngquant", null);
+        }
+        return this.pngQuant;
     }
 }
