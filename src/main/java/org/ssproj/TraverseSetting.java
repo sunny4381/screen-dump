@@ -6,61 +6,153 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.URL;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
-/**
- * Created by nakano on 2016/05/13.
- */
 public class TraverseSetting {
+    public static final boolean DEFAULT_RECURSIVELY = false;
+    public static final String DEFAULT_BROWSER = "firefox";
+    public static final int DEFAULT_CONCURRENCY = 2;
+    public static final String DEFAULT_OUTPUT_DIRECTORY = "screenshots";
+    public static final long DEFAULT_SCREEN_SHOT_LIMIT = 0;
+    public static final long DEFAULT_INITIAL_SLEEP = 5000;
+    public static final long DEFAULT_SLEEP = 500;
+    public static final int DEFAULT_WIDTH = 0;
+    public static final int DEFAULT_HEIGHT = 0;
     private final static Logger LOGGER = LoggerFactory.getLogger(TraverseSetting.class);
-    public static TraverseSetting load(String fileName) throws IOException {
-        Yaml yaml = new Yaml();
-        HashMap setting = (HashMap) yaml.load(new FileReader(fileName));
 
-        return new TraverseSetting((HashMap) setting.get("traverse"));
-    }
-
-    private final HashMap settings;
-    private List<String> seeds;
-    private List<String> accessibleDomains;
-    private List<String> extractableDomains;
-    private List<String> excludePaths;
-    private List<String> allowSuffixes;
+    private boolean recursively = DEFAULT_RECURSIVELY;
+    private String browser = DEFAULT_BROWSER;
+    private int concurrency = DEFAULT_CONCURRENCY;
+    private String outputDirectory = DEFAULT_OUTPUT_DIRECTORY;
+    private long screenShotLimit = DEFAULT_SCREEN_SHOT_LIMIT;
+    private long initialSleep = DEFAULT_INITIAL_SLEEP;
+    private long sleep = DEFAULT_SLEEP;
+    private int width = DEFAULT_WIDTH;
+    private int height = DEFAULT_HEIGHT;
+    private List<String> seeds = Collections.emptyList();
+    private List<String> accessibleDomains = Collections.emptyList();
+    private List<String> extractableDomains = Collections.emptyList();
+    private List<String> excludePaths = Collections.emptyList();
+    private List<String> allowSuffixes = Collections.emptyList();
     private String pngQuant;
 
-    public TraverseSetting(HashMap settings) {
-        this.settings = settings;
+    public TraverseSetting() {
+    }
+
+    public static TraverseSetting load(String fileName) throws IOException {
+        return load(new FileReader(fileName));
+    }
+
+    public static TraverseSetting load(Reader input) throws IOException {
+        final Yaml yaml = new Yaml();
+        return yaml.loadAs(input, TraverseSetting.class);
+    }
+
+    public String getBrowser() {
+        return browser;
+    }
+
+    public void setBrowser(String browser) {
+        this.browser = browser;
+    }
+
+    public String getOutputDirectory() {
+        return this.outputDirectory;
+    }
+
+    public void setOutputDirectory(String outputDirectory) {
+        this.outputDirectory = outputDirectory;
+    }
+
+    public long getScreenShotLimit() {
+        return this.screenShotLimit;
+    }
+
+    public void setScreenShotLimit(long screenShotLimit) {
+        this.screenShotLimit = screenShotLimit;
+    }
+
+    public long getInitialSleep() {
+        return initialSleep;
+    }
+
+    public void setInitialSleep(long initialSleep) {
+        this.initialSleep = initialSleep;
+    }
+
+    public long getSleep() {
+        return sleep;
+    }
+
+    public void setSleep(long sleep) {
+        this.sleep = sleep;
+    }
+
+    public int getConcurrency() {
+        return concurrency;
+    }
+
+    public void setConcurrency(int concurrency) {
+        this.concurrency = concurrency;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }
+
+    public boolean getRecursively() {
+        return recursively;
+    }
+
+    public void setRecursively(boolean recursively) {
+        this.recursively = recursively;
     }
 
     public List<String> getSeeds() {
-        if (this.seeds == null) {
-            this.seeds = (List) this.settings.getOrDefault("seeds", Collections.<String>emptyList());
-        }
         return this.seeds;
     }
 
+    public void setSeeds(List<String> seeds) {
+        this.seeds = seeds;
+    }
+
     public List<String> getAccessibleDomains() {
-        if (this.accessibleDomains == null) {
-            this.accessibleDomains = (List) this.settings.getOrDefault("accessible_domains", Collections.<String>emptyList());
-        }
         return this.accessibleDomains;
     }
 
+    public void setAccessibleDomains(List<String> accessibleDomains) {
+        this.accessibleDomains = accessibleDomains;
+    }
+
     public List<String> getExtractableDomains() {
-        if (this.extractableDomains == null) {
-            this.extractableDomains = (List) this.settings.getOrDefault("extractable_domains", Collections.<String>emptyList());
-        }
         return this.extractableDomains;
     }
 
+    public void setExtractableDomains(List<String> extractableDomains) {
+        this.extractableDomains = extractableDomains;
+    }
+
     public List<String> getExcludePaths() {
-        if (this.excludePaths == null) {
-            this.excludePaths = (List) this.settings.getOrDefault("exclude_paths", Collections.<String>emptyList());
-        }
         return this.excludePaths;
+    }
+
+    public void setExcludePaths(List<String> excludePaths) {
+        this.excludePaths = excludePaths;
     }
 
     public boolean containsExcludePaths(URL url) {
@@ -79,10 +171,11 @@ public class TraverseSetting {
     }
 
     public List<String> getAllowSuffixes() {
-        if (this.allowSuffixes == null) {
-            this.allowSuffixes = (List) this.settings.getOrDefault("allow_suffixes", Collections.<String>emptyList());
-        }
         return this.allowSuffixes;
+    }
+
+    public void setAllowSuffixes(List<String> allowSuffixes) {
+        this.allowSuffixes = allowSuffixes;
     }
 
     public static String removeFragmentPart(String path) {
@@ -166,9 +259,10 @@ public class TraverseSetting {
     }
 
     public String getPngQuant() {
-        if (this.pngQuant == null) {
-            this.pngQuant = (String) this.settings.getOrDefault("pngquant", null);
-        }
         return this.pngQuant;
+    }
+
+    public void setPngQuant(String pngQuant) {
+        this.pngQuant = pngQuant;
     }
 }

@@ -18,7 +18,7 @@ public class PNGCompressor {
         this.command = command;
     }
 
-    public boolean apply(final File file) {
+    public boolean apply(final File file) throws InterruptedException {
         final Process p = startProcess(file);
         if (p == null) {
             return false;
@@ -32,6 +32,7 @@ public class PNGCompressor {
             return false;
         }
 
+        p.waitFor();
         int exitValue = p.exitValue();
         if (exitValue != 0) {
             LOGGER.warn("{} is existed non-success value: {} ", command, exitValue);
