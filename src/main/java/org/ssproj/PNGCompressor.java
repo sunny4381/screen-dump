@@ -44,7 +44,7 @@ public class PNGCompressor {
 
     @org.jetbrains.annotations.Nullable
     private Process startProcess(File file) {
-        final ProcessBuilder pb = new ProcessBuilder(this.command, "--ext", ".png", "--force", file.getAbsolutePath());
+        final ProcessBuilder pb = new ProcessBuilder(this.command, "--speed", "1", "--ext", ".png", "--force", file.getAbsolutePath());
         pb.redirectErrorStream(true);
         try {
             return pb.start();

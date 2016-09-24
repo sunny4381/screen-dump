@@ -9,6 +9,7 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
@@ -19,12 +20,14 @@ public class ChromeTraverser extends Traverser {
         super(context);
     }
 
+    @Override
     protected WebDriver startDriver() {
         LOGGER.info("starting chrome driver");
         return new ChromeDriver();
     }
 
-    protected void saveScreenShot(URL url) throws IOException, InterruptedException {
+    @Override
+    protected void saveScreenShot() throws IOException, InterruptedException {
         JavascriptExecutor jexec = (JavascriptExecutor) getDriver();
 
         //画面サイズで必要なものを取得
@@ -70,6 +73,9 @@ public class ChromeTraverser extends Traverser {
 
             ImageIO.write(img, "png", getOutputFile());
         }
-        compressPng(getOutputFile());
+
+        File outputFile = getOutputFile();
+        compressPng(outputFile);
+        LOGGER.debug("saved screen shot: {}", outputFile);
     }
 }

@@ -8,6 +8,7 @@ public class FirefoxTraverser extends Traverser {
         super(context);
     }
 
+    @Override
     protected WebDriver startDriver() {
         LOGGER.info("starting firefox driver");
         return new FirefoxDriver();

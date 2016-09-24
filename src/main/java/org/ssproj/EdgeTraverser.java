@@ -8,6 +8,7 @@ public class EdgeTraverser extends Traverser {
         super(context);
     }
 
+    @Override
     protected WebDriver startDriver() {
         LOGGER.info("starting edge driver");
         return new EdgeDriver();

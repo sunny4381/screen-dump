@@ -2,7 +2,6 @@ package org.ssproj;
 
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.*;
-import org.openqa.selenium.support.ui.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,9 +9,10 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -20,7 +20,6 @@ public abstract class Traverser implements Closeable {
     public final static Logger LOGGER = LoggerFactory.getLogger(Traverser.class);
     private TraverserContext context;
     private WebDriver driver;
-    private Wait<WebDriver> wait;
     private final AtomicLong counter = new AtomicLong();
 
     public Traverser(TraverserContext context) {
@@ -67,6 +66,7 @@ public abstract class Traverser implements Closeable {
         }
 
         if (!getContext().addCheck(url)) {
+            LOGGER.debug("{}: already visited", url);
             return;
         }
 
@@ -117,6 +117,7 @@ public abstract class Traverser implements Closeable {
         try {
             url = new URL(this.driver.getCurrentUrl());
         } catch (MalformedURLException e) {
+            LOGGER.warn(this.driver.getCurrentUrl() + ": malformed url", e);
             return false;
         }
 
@@ -150,6 +151,7 @@ public abstract class Traverser implements Closeable {
         File outputFile = getOutputFile();
         FileUtils.copyFile(file, outputFile);
         compressPng(outputFile);
+        LOGGER.debug("saved screen shot: {}", outputFile);
     }
 
     protected File getOutputFile() {
@@ -157,6 +159,7 @@ public abstract class Traverser implements Closeable {
         try {
             url = new URL(this.driver.getCurrentUrl());
         } catch (MalformedURLException e) {
+            LOGGER.warn(this.driver.getCurrentUrl() + ": malformed url", e);
             return null;
         }
 
@@ -196,47 +199,37 @@ public abstract class Traverser implements Closeable {
         compressor.apply(file);
     }
 
-    private void traverse() {
-        final URI baseUri;
+    private void traverse() throws InterruptedException {
+        final AnchorExtractor extractor = new AnchorExtractor(this.driver);
+        final Href2URI href2uri;
         try {
-            baseUri = new URI(this.driver.getCurrentUrl());
+            href2uri = new Href2URI(this.driver);
         } catch (URISyntaxException e) {
+            LOGGER.error("uri syntax exception", e);
             return;
         }
 
-        for (WebElement element : this.driver.findElements(By.tagName("a"))) {
-            try {
-                final String href = element.getAttribute("href");
-                if (href == null || href.isEmpty()) {
-                    continue;
-                }
-
-                URI uri = baseUri.resolve(href).normalize();
-                if (! baseUri.getHost().equalsIgnoreCase(uri.getHost())) {
-                    continue;
-                }
-
-                uri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(), null);
-                URL newUrl = uri.toURL();
-                if (getContext().containsCheck(newUrl)) {
-                    continue;
-                }
-                if (!getContext().allowsForAccess(newUrl)) {
-                    continue;
-                }
-
-                this.context.getQueue().put(newUrl);
-            } catch (RuntimeException e) {
-                LOGGER.error("some error", e);
-            } catch (MalformedURLException | URISyntaxException e) {
-                LOGGER.error("malformed error", e);
-            } catch (InterruptedException e) {
-                LOGGER.error("interrupted", e);
-                break;
+        Set<String> dups = new HashSet<>();
+        for (URL url: href2uri.apply(extractor.apply())) {
+            if (!dups.add(url.toString())) {
+                continue;
             }
+
+            LOGGER.debug("extract {} from {}", url, href2uri.getBaseURI());
+            if (getContext().containsCheck(url)) {
+                LOGGER.debug("{}: already visited", url);
+                continue;
+            }
+            if (!getContext().allowsForAccess(url)) {
+                LOGGER.debug("{}: not allowed for access", url);
+                continue;
+            }
+
+            this.getContext().getQueue().put(url);
         }
     }
 
+    @Override
     public void close() {
         if (this.driver != null) {
             this.driver.close();

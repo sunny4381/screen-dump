@@ -8,6 +8,7 @@ public class InternetExplorerTraverser extends Traverser {
         super(context);
     }
 
+    @Override
     protected WebDriver startDriver() {
         LOGGER.info("starting internet explorer driver");
         return new InternetExplorerDriver();

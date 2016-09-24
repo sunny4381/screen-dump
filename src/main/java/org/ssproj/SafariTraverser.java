@@ -8,6 +8,7 @@ public class SafariTraverser extends Traverser {
         super(context);
     }
 
+    @Override
     protected WebDriver startDriver() {
         LOGGER.info("starting safari driver");
         return new SafariDriver();

@@ -16,7 +16,7 @@ public class TraverserContext {
     private final TraverseSetting setting;
     private final BlockingQueue<URL> queue = new LinkedBlockingQueue<>();
     private final AtomicBoolean done = new AtomicBoolean();
-    private final Set<URL> check = Collections.synchronizedSet(new HashSet<>());
+    private final Set<String> check = Collections.synchronizedSet(new HashSet<>());
     private final AtomicLong totalCounter = new AtomicLong();
 
     public TraverserContext() {
@@ -126,11 +126,11 @@ public class TraverserContext {
         return totalCounter;
     }
 
-//    public Set<URL> getCheck() {
-//        return check;
-//    }
-
     public boolean addCheck(URL url) {
+        return addCheck(url.toString());
+    }
+
+    public boolean addCheck(String url) {
         return this.check.add(url);
     }
 
@@ -151,6 +151,10 @@ public class TraverserContext {
     }
 
     public boolean containsCheck(URL url) {
+        return containsCheck(url.toString());
+    }
+
+    public boolean containsCheck(String url) {
         return this.check.contains(url);
     }
 
