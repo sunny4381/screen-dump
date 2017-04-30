@@ -4,6 +4,8 @@ import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.io.Closeable;
 import java.io.File;
@@ -18,6 +20,7 @@ import java.util.regex.Pattern;
 
 public abstract class Traverser implements Closeable {
     public final static Logger LOGGER = LoggerFactory.getLogger(Traverser.class);
+    private final static Marker LINK = MarkerFactory.getMarker("link");
     private TraverserContext context;
     private WebDriver driver;
     private final AtomicLong counter = new AtomicLong();
@@ -215,7 +218,7 @@ public abstract class Traverser implements Closeable {
                 continue;
             }
 
-            LOGGER.debug("extract {} from {}", url, href2uri.getBaseURI());
+            LOGGER.debug(LINK, "{}\t{}", href2uri.getBaseURI(), url);
             if (getContext().containsCheck(url)) {
                 LOGGER.debug("{}: already visited", url);
                 continue;
