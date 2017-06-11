@@ -29,8 +29,13 @@ public class Href2URI {
         URI uri = baseURI.resolve(href).normalize();
 
         try {
+            String scheme = uri.getScheme();
+            if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) {
+                return null;
+            }
+
             // remove fragmet
-            return new URI(uri.getScheme(), uri.getUserInfo(),
+            return new URI(scheme, uri.getUserInfo(),
                     uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(), null).toURL();
         } catch (URISyntaxException | MalformedURLException e) {
             LOGGER.debug(href + ": malformed uri", e);
